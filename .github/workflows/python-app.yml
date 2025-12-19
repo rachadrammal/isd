@@ -32,9 +32,12 @@ jobs:
 
       - name: Run tests safely
         run: |
+          # Add src folder to Python module path
+          export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+          
           # Check if any test files exist
           if ls tests/test_*.py 1> /dev/null 2>&1; then
-            pytest
+            pytest tests/
           else
             echo "No tests found, skipping pytest"
           fi
