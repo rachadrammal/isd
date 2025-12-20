@@ -3,13 +3,12 @@ Company Management System - Python Backend
 This Flask application serves as the backend API for the company management system.
 Connect your AI models in the designated sections marked with # AI MODEL INTEGRATION
 """
+import datetime
+from functools import wraps
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from datetime import datetime, timedelta
 import jwt
-#import json
-from functools import wraps
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
@@ -524,7 +523,8 @@ def get_dashboard_stats(current_user):
         'total_orders': len(orders_db),
         'active_production_runs': len(production_db['production_runs']),
         'pending_alerts': len([a for a in alerts_db if a.get('status') == 'new']),
-        'revenue': sum(order.get('totalAmount', 0) for order in orders_db if order.get('status') == 'completed'),
+        'revenue': sum(order.get('totalAmount', 0) 
+                       for order in orders_db if order.get('status') == 'completed'),
     }
 
     # ========================================================================
