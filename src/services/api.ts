@@ -3,39 +3,50 @@
  * Update BASE_URL to match your backend server URL
  */
 
-const BASE_URL = 'http://localhost:5000/api';
+const BASE_URL = "http://localhost:5000/api";
 
 // Store JWT token
 let authToken: string | null = null;
 
 export const setAuthToken = (token: string) => {
   authToken = token;
-  localStorage.setItem('auth_token', token);
+  localStorage.setItem("auth_token", token);
 };
 
 export const getAuthToken = () => {
   if (!authToken) {
-    authToken = localStorage.getItem('auth_token');
+    authToken = localStorage.getItem("auth_token");
   }
   return authToken;
 };
 
 export const clearAuthToken = () => {
   authToken = null;
-  localStorage.removeItem('auth_token');
+  localStorage.removeItem("auth_token");
 };
 
 // Generic API request function
 async function apiRequest(endpoint: string, options: RequestInit = {}) {
   const token = getAuthToken();
-  
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...options.headers,
+
+  let headersToMerge: Record<string, string> = {};
+  if (typeof options.headers === "object" && !Array.isArray(options.headers)) {
+    if (options.headers instanceof Headers) {
+      options.headers.forEach((value, key) => {
+        headersToMerge[key] = value;
+      });
+    } else {
+      headersToMerge = options.headers as Record<string, string>;
+    }
+  }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...headersToMerge,
   };
 
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   const response = await fetch(`${BASE_URL}${endpoint}`, {
@@ -45,7 +56,7 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.message || 'API request failed');
+    throw new Error(error.message || "API request failed");
   }
 
   return response.json();
@@ -57,15 +68,15 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
 
 export const authAPI = {
   login: async (username: string, password: string) => {
-    const response = await apiRequest('/auth/login', {
-      method: 'POST',
+    const response = await apiRequest("/auth/login", {
+      method: "POST",
       body: JSON.stringify({ username, password }),
     });
-    
+
     if (response.token) {
       setAuthToken(response.token);
     }
-    
+
     return response;
   },
 
@@ -79,29 +90,34 @@ export const authAPI = {
 // ============================================================================
 
 export const inventoryAPI = {
-  getWarehouse: (warehouseType: string) => 
+  getWarehouse: (warehouseType: string) =>
     apiRequest(`/inventory/${warehouseType}`),
 
   addItem: (warehouseType: string, item: any) =>
     apiRequest(`/inventory/${warehouseType}`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(item),
     }),
 
   updateItem: (warehouseType: string, itemId: string, item: any) =>
     apiRequest(`/inventory/${warehouseType}/${itemId}`, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify(item),
     }),
 
   deleteItem: (warehouseType: string, itemId: string) =>
     apiRequest(`/inventory/${warehouseType}/${itemId}`, {
-      method: 'DELETE',
+      method: "DELETE",
     }),
 
-  transferItem: (fromWarehouse: string, toWarehouse: string, itemId: string, quantity?: number) =>
-    apiRequest('/inventory/transfer', {
-      method: 'POST',
+  transferItem: (
+    fromWarehouse: string,
+    toWarehouse: string,
+    itemId: string,
+    quantity?: number
+  ) =>
+    apiRequest("/inventory/transfer", {
+      method: "POST",
       body: JSON.stringify({
         from_warehouse: fromWarehouse,
         to_warehouse: toWarehouse,
@@ -116,17 +132,17 @@ export const inventoryAPI = {
 // ============================================================================
 
 export const salesAPI = {
-  getOrders: () => apiRequest('/orders'),
+  getOrders: () => apiRequest("/orders"),
 
   createOrder: (order: any) =>
-    apiRequest('/orders', {
-      method: 'POST',
+    apiRequest("/orders", {
+      method: "POST",
       body: JSON.stringify(order),
     }),
 
   updateOrder: (orderId: string, updates: any) =>
     apiRequest(`/orders/${orderId}`, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify(updates),
     }),
 };
@@ -136,27 +152,27 @@ export const salesAPI = {
 // ============================================================================
 
 export const productionAPI = {
-  getProducts: () => apiRequest('/production/products'),
+  getProducts: () => apiRequest("/production/products"),
 
-  getRuns: () => apiRequest('/production/runs'),
+  getRuns: () => apiRequest("/production/runs"),
 
-  getArchivedRuns: () => apiRequest('/production/archived'),
+  getArchivedRuns: () => apiRequest("/production/archived"),
 
   createRun: (run: any) =>
-    apiRequest('/production/runs', {
-      method: 'POST',
+    apiRequest("/production/runs", {
+      method: "POST",
       body: JSON.stringify(run),
     }),
 
   updateRun: (runId: string, updates: any) =>
     apiRequest(`/production/runs/${runId}`, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify(updates),
     }),
 
   updateMachineStatus: (runId: string, stopped: boolean, reason?: string) =>
     apiRequest(`/production/runs/${runId}/machine-status`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({
         machine_stopped: stopped,
         reason,
@@ -169,21 +185,21 @@ export const productionAPI = {
 // ============================================================================
 
 export const alertsAPI = {
-  getAlerts: () => apiRequest('/alerts'),
+  getAlerts: () => apiRequest("/alerts"),
 
   createAlert: (alert: any) =>
-    apiRequest('/alerts', {
-      method: 'POST',
+    apiRequest("/alerts", {
+      method: "POST",
       body: JSON.stringify(alert),
     }),
 
   updateAlert: (alertId: string, updates: any) =>
     apiRequest(`/alerts/${alertId}`, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify(updates),
     }),
 
-  getCameras: () => apiRequest('/cameras'),
+  getCameras: () => apiRequest("/cameras"),
 
   /**
    * AI MODEL INTEGRATION POINT
@@ -191,7 +207,7 @@ export const alertsAPI = {
    */
   analyzeCameraFeed: (cameraId: string, frameData: any) =>
     apiRequest(`/cameras/${cameraId}/analyze`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({ frame_base64: frameData }),
     }),
 };
@@ -205,11 +221,11 @@ export const dashboardAPI = {
    * AI MODEL INTEGRATION POINT
    * Returns dashboard stats with AI predictions
    */
-  getStats: () => apiRequest('/dashboard/stats'),
+  getStats: () => apiRequest("/dashboard/stats"),
 
   /**
    * AI MODEL INTEGRATION POINT
    * Returns AI-powered business suggestions
    */
-  getAISuggestions: () => apiRequest('/analytics/suggestions'),
+  getAISuggestions: () => apiRequest("/analytics/suggestions"),
 };

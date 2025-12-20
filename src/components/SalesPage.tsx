@@ -1,5 +1,16 @@
-import { useState } from 'react';
-import { Plus, Search, Eye, Package, Trash2, ShoppingCart, User, DollarSign, Calendar, Sparkles } from 'lucide-react';
+import { useState } from "react";
+import {
+  Plus,
+  Search,
+  Eye,
+  Package,
+  Trash2,
+  ShoppingCart,
+  User,
+  DollarSign,
+  Calendar,
+  Sparkles,
+} from "lucide-react";
 
 interface OrderItem {
   productId: string;
@@ -15,108 +26,138 @@ interface Order {
   customerEmail: string;
   items: OrderItem[];
   totalAmount: number;
-  status: 'pending' | 'processing' | 'completed' | 'cancelled';
+  status: "pending" | "processing" | "completed" | "cancelled";
   orderDate: string;
   deliveryDate: string;
 }
 
 const availableProducts = [
-  { id: '1', name: 'Product Alpha', price: 25.99, stock: 450 },
-  { id: '2', name: 'Product Beta', price: 89.99, stock: 125 },
-  { id: '3', name: 'Product Gamma', price: 15.50, stock: 780 },
-  { id: '4', name: 'Product Delta', price: 42.00, stock: 95 },
-  { id: '5', name: 'Product Epsilon', price: 67.50, stock: 320 },
+  { id: "1", name: "Product Alpha", price: 25.99, stock: 450 },
+  { id: "2", name: "Product Beta", price: 89.99, stock: 125 },
+  { id: "3", name: "Product Gamma", price: 15.5, stock: 780 },
+  { id: "4", name: "Product Delta", price: 42.0, stock: 95 },
+  { id: "5", name: "Product Epsilon", price: 67.5, stock: 320 },
 ];
 
 const initialOrders: Order[] = [
   {
-    id: '1',
-    orderNumber: 'ORD-001',
-    customerName: 'John Smith',
-    customerEmail: 'john@example.com',
+    id: "1",
+    orderNumber: "ORD-001",
+    customerName: "John Smith",
+    customerEmail: "john@example.com",
     items: [
-      { productId: '1', productName: 'Product Alpha', quantity: 10, price: 25.99 },
-      { productId: '2', productName: 'Product Beta', quantity: 5, price: 89.99 }
+      {
+        productId: "1",
+        productName: "Product Alpha",
+        quantity: 10,
+        price: 25.99,
+      },
+      {
+        productId: "2",
+        productName: "Product Beta",
+        quantity: 5,
+        price: 89.99,
+      },
     ],
     totalAmount: 709.85,
-    status: 'completed',
-    orderDate: '2024-12-10',
-    deliveryDate: '2024-12-15'
+    status: "completed",
+    orderDate: "2024-12-10",
+    deliveryDate: "2024-12-15",
   },
   {
-    id: '2',
-    orderNumber: 'ORD-002',
-    customerName: 'Jane Doe',
-    customerEmail: 'jane@example.com',
+    id: "2",
+    orderNumber: "ORD-002",
+    customerName: "Jane Doe",
+    customerEmail: "jane@example.com",
     items: [
-      { productId: '3', productName: 'Product Gamma', quantity: 25, price: 15.50 }
+      {
+        productId: "3",
+        productName: "Product Gamma",
+        quantity: 25,
+        price: 15.5,
+      },
     ],
-    totalAmount: 387.50,
-    status: 'processing',
-    orderDate: '2024-12-12',
-    deliveryDate: '2024-12-18'
+    totalAmount: 387.5,
+    status: "processing",
+    orderDate: "2024-12-12",
+    deliveryDate: "2024-12-18",
   },
   {
-    id: '3',
-    orderNumber: 'ORD-003',
-    customerName: 'Bob Wilson',
-    customerEmail: 'bob@example.com',
+    id: "3",
+    orderNumber: "ORD-003",
+    customerName: "Bob Wilson",
+    customerEmail: "bob@example.com",
     items: [
-      { productId: '4', productName: 'Product Delta', quantity: 8, price: 42.00 },
-      { productId: '5', productName: 'Product Epsilon', quantity: 3, price: 67.50 }
+      {
+        productId: "4",
+        productName: "Product Delta",
+        quantity: 8,
+        price: 42.0,
+      },
+      {
+        productId: "5",
+        productName: "Product Epsilon",
+        quantity: 3,
+        price: 67.5,
+      },
     ],
-    totalAmount: 538.50,
-    status: 'pending',
-    orderDate: '2024-12-13',
-    deliveryDate: '2024-12-20'
+    totalAmount: 538.5,
+    status: "pending",
+    orderDate: "2024-12-13",
+    deliveryDate: "2024-12-20",
   },
 ];
 
 export function SalesPage() {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
-  
-  // New order form state
-  const [customerName, setCustomerName] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
-  const [deliveryDate, setDeliveryDate] = useState('');
 
-  const filteredOrders = orders.filter(order =>
-    order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.customerEmail.toLowerCase().includes(searchTerm.toLowerCase())
+  // New order form state
+  const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [deliveryDate, setDeliveryDate] = useState("");
+
+  const filteredOrders = orders.filter(
+    (order) =>
+      order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customerEmail.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const addProductToOrder = () => {
     const emptyItem: OrderItem = {
-      productId: '',
-      productName: '',
+      productId: "",
+      productName: "",
       quantity: 1,
-      price: 0
+      price: 0,
     };
     setOrderItems([...orderItems, emptyItem]);
   };
 
-  const updateOrderItem = (index: number, field: keyof OrderItem, value: any) => {
+  const updateOrderItem = (
+    index: number,
+    field: keyof OrderItem,
+    value: any
+  ) => {
     const newItems = [...orderItems];
-    
-    if (field === 'productId') {
-      const product = availableProducts.find(p => p.id === value);
+
+    if (field === "productId") {
+      const product = availableProducts.find((p) => p.id === value);
       if (product) {
         newItems[index] = {
           ...newItems[index],
           productId: value,
           productName: product.name,
-          price: product.price
+          price: product.price,
         };
       }
     } else {
       newItems[index] = { ...newItems[index], [field]: value };
     }
-    
+
     setOrderItems(newItems);
   };
 
@@ -125,56 +166,74 @@ export function SalesPage() {
   };
 
   const calculateTotal = () => {
-    return orderItems.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+    return orderItems.reduce(
+      (sum, item) => sum + item.quantity * item.price,
+      0
+    );
   };
 
   const handleCreateOrder = () => {
     if (!customerName || !customerEmail || orderItems.length === 0) {
-      alert('Please fill in all required fields and add at least one product');
+      alert("Please fill in all required fields and add at least one product");
       return;
     }
 
     const newOrder: Order = {
       id: Date.now().toString(),
-      orderNumber: `ORD-${String(orders.length + 1).padStart(3, '0')}`,
+      orderNumber: `ORD-${String(orders.length + 1).padStart(3, "0")}`,
       customerName,
       customerEmail,
       items: orderItems,
       totalAmount: calculateTotal(),
-      status: 'pending',
-      orderDate: new Date().toISOString().split('T')[0],
-      deliveryDate: deliveryDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      status: "pending",
+      orderDate: new Date().toISOString().split("T")[0],
+      deliveryDate:
+        deliveryDate ||
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0],
     };
 
     setOrders([newOrder, ...orders]);
-    
+
     // Reset form
-    setCustomerName('');
-    setCustomerEmail('');
+    setCustomerName("");
+    setCustomerEmail("");
     setOrderItems([]);
-    setDeliveryDate('');
+    setDeliveryDate("");
     setShowCreateModal(false);
   };
 
-  const updateOrderStatus = (orderId: string, status: Order['status']) => {
-    setOrders(orders.map(order =>
-      order.id === orderId ? { ...order, status } : order
-    ));
+  const updateOrderStatus = (orderId: string, status: Order["status"]) => {
+    setOrders(
+      orders.map((order) =>
+        order.id === orderId ? { ...order, status } : order
+      )
+    );
   };
 
-  const getStatusColor = (status: Order['status']) => {
+  const getStatusColor = (status: Order["status"]) => {
     switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-700';
-      case 'processing': return 'bg-blue-100 text-blue-700';
-      case 'completed': return 'bg-green-100 text-green-700';
-      case 'cancelled': return 'bg-red-100 text-red-700';
-      default: return 'bg-gray-100 text-gray-700';
+      case "pending":
+        return "bg-yellow-100 text-yellow-700";
+      case "processing":
+        return "bg-blue-100 text-blue-700";
+      case "completed":
+        return "bg-green-100 text-green-700";
+      case "cancelled":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-700";
     }
   };
 
-  const totalRevenue = orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + o.totalAmount, 0);
-  const pendingOrders = orders.filter(o => o.status === 'pending').length;
-  const processingOrders = orders.filter(o => o.status === 'processing').length;
+  const totalRevenue = orders
+    .filter((o) => o.status === "completed")
+    .reduce((sum, o) => sum + o.totalAmount, 0);
+  const pendingOrders = orders.filter((o) => o.status === "pending").length;
+  const processingOrders = orders.filter(
+    (o) => o.status === "processing"
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -182,7 +241,9 @@ export function SalesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-gray-900 mb-2">Sales Management</h1>
-          <p className="text-gray-600">Manage customer orders and track sales</p>
+          <p className="text-gray-600">
+            Manage customer orders and track sales
+          </p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
@@ -202,7 +263,9 @@ export function SalesPage() {
             </div>
             <div>
               <p className="text-gray-600 text-sm">Total Revenue</p>
-              <p className="text-gray-900 text-xl">${totalRevenue.toLocaleString()}</p>
+              <p className="text-gray-900 text-xl">
+                ${totalRevenue.toLocaleString()}
+              </p>
             </div>
           </div>
         </div>
@@ -264,14 +327,30 @@ export function SalesPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-gray-700 text-sm">Order #</th>
-                <th className="px-6 py-3 text-left text-gray-700 text-sm">Customer</th>
-                <th className="px-6 py-3 text-left text-gray-700 text-sm">Items</th>
-                <th className="px-6 py-3 text-left text-gray-700 text-sm">Total</th>
-                <th className="px-6 py-3 text-left text-gray-700 text-sm">Status</th>
-                <th className="px-6 py-3 text-left text-gray-700 text-sm">Order Date</th>
-                <th className="px-6 py-3 text-left text-gray-700 text-sm">Delivery Date</th>
-                <th className="px-6 py-3 text-left text-gray-700 text-sm">Actions</th>
+                <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                  Order #
+                </th>
+                <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                  Customer
+                </th>
+                <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                  Items
+                </th>
+                <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                  Total
+                </th>
+                <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                  Order Date
+                </th>
+                <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                  Delivery Date
+                </th>
+                <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -283,20 +362,31 @@ export function SalesPage() {
                   <td className="px-6 py-4">
                     <div>
                       <p className="text-gray-900">{order.customerName}</p>
-                      <p className="text-gray-500 text-sm">{order.customerEmail}</p>
+                      <p className="text-gray-500 text-sm">
+                        {order.customerEmail}
+                      </p>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <p className="text-gray-600">{order.items.length} items</p>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-gray-900">${order.totalAmount.toFixed(2)}</p>
+                    <p className="text-gray-900">
+                      ${order.totalAmount.toFixed(2)}
+                    </p>
                   </td>
                   <td className="px-6 py-4">
                     <select
                       value={order.status}
-                      onChange={(e) => updateOrderStatus(order.id, e.target.value as Order['status'])}
-                      className={`px-3 py-1 rounded text-sm ${getStatusColor(order.status)} border-0 cursor-pointer`}
+                      onChange={(e) =>
+                        updateOrderStatus(
+                          order.id,
+                          e.target.value as Order["status"]
+                        )
+                      }
+                      className={`px-3 py-1 rounded text-sm ${getStatusColor(
+                        order.status
+                      )} border-0 cursor-pointer`}
                     >
                       <option value="pending">Pending</option>
                       <option value="processing">Processing</option>
@@ -308,7 +398,9 @@ export function SalesPage() {
                     <p className="text-gray-600 text-sm">{order.orderDate}</p>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-gray-600 text-sm">{order.deliveryDate}</p>
+                    <p className="text-gray-600 text-sm">
+                      {order.deliveryDate}
+                    </p>
                   </td>
                   <td className="px-6 py-4">
                     <button
@@ -330,13 +422,15 @@ export function SalesPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <h2 className="text-gray-900 mb-4">Create New Order</h2>
-            
+
             {/* Customer Information */}
             <div className="mb-6">
               <h3 className="text-gray-900 mb-3">Customer Information</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-gray-700 mb-2">Customer Name *</label>
+                  <label className="block text-gray-700 mb-2">
+                    Customer Name *
+                  </label>
                   <input
                     type="text"
                     value={customerName}
@@ -346,7 +440,9 @@ export function SalesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-700 mb-2">Customer Email *</label>
+                  <label className="block text-gray-700 mb-2">
+                    Customer Email *
+                  </label>
                   <input
                     type="email"
                     value={customerEmail}
@@ -373,36 +469,54 @@ export function SalesPage() {
 
               <div className="space-y-3">
                 {orderItems.map((item, index) => (
-                  <div key={index} className="flex gap-3 items-start bg-gray-50 p-3 rounded-lg">
+                  <div
+                    key={index}
+                    className="flex gap-3 items-start bg-gray-50 p-3 rounded-lg"
+                  >
                     <div className="flex-1">
-                      <label className="block text-gray-700 text-sm mb-1">Product</label>
+                      <label className="block text-gray-700 text-sm mb-1">
+                        Product
+                      </label>
                       <select
                         value={item.productId}
-                        onChange={(e) => updateOrderItem(index, 'productId', e.target.value)}
+                        onChange={(e) =>
+                          updateOrderItem(index, "productId", e.target.value)
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       >
                         <option value="">Select product</option>
-                        {availableProducts.map(product => (
+                        {availableProducts.map((product) => (
                           <option key={product.id} value={product.id}>
-                            {product.name} - ${product.price} (Stock: {product.stock})
+                            {product.name} - ${product.price} (Stock:{" "}
+                            {product.stock})
                           </option>
                         ))}
                       </select>
                     </div>
-                    
+
                     <div className="w-32">
-                      <label className="block text-gray-700 text-sm mb-1">Quantity</label>
+                      <label className="block text-gray-700 text-sm mb-1">
+                        Quantity
+                      </label>
                       <input
                         type="number"
                         min="1"
                         value={item.quantity}
-                        onChange={(e) => updateOrderItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                        onChange={(e) =>
+                          updateOrderItem(
+                            index,
+                            "quantity",
+                            parseInt(e.target.value) || 1
+                          )
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       />
                     </div>
 
                     <div className="w-32">
-                      <label className="block text-gray-700 text-sm mb-1">Subtotal</label>
+                      <label className="block text-gray-700 text-sm mb-1">
+                        Subtotal
+                      </label>
                       <div className="px-3 py-2 bg-gray-100 rounded-lg text-gray-900">
                         ${(item.quantity * item.price).toFixed(2)}
                       </div>
@@ -440,7 +554,9 @@ export function SalesPage() {
             <div className="mb-6 p-4 bg-indigo-50 rounded-lg">
               <div className="flex items-center justify-between">
                 <span className="text-gray-900">Order Total:</span>
-                <span className="text-gray-900 text-2xl">${calculateTotal().toFixed(2)}</span>
+                <span className="text-gray-900 text-2xl">
+                  ${calculateTotal().toFixed(2)}
+                </span>
               </div>
             </div>
 
@@ -455,10 +571,10 @@ export function SalesPage() {
               <button
                 onClick={() => {
                   setShowCreateModal(false);
-                  setCustomerName('');
-                  setCustomerEmail('');
+                  setCustomerName("");
+                  setCustomerEmail("");
                   setOrderItems([]);
-                  setDeliveryDate('');
+                  setDeliveryDate("");
                 }}
                 className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
               >
@@ -473,8 +589,10 @@ export function SalesPage() {
       {viewingOrder && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-gray-900 mb-4">Order Details - {viewingOrder.orderNumber}</h2>
-            
+            <h2 className="text-gray-900 mb-4">
+              Order Details - {viewingOrder.orderNumber}
+            </h2>
+
             <div className="space-y-4 mb-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -499,12 +617,19 @@ export function SalesPage() {
                 <p className="text-gray-600 text-sm mb-2">Order Items</p>
                 <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                   {viewingOrder.items.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center">
+                    <div
+                      key={index}
+                      className="flex justify-between items-center"
+                    >
                       <div>
                         <p className="text-gray-900">{item.productName}</p>
-                        <p className="text-gray-600 text-sm">Quantity: {item.quantity} × ${item.price}</p>
+                        <p className="text-gray-600 text-sm">
+                          Quantity: {item.quantity} × ${item.price}
+                        </p>
                       </div>
-                      <p className="text-gray-900">${(item.quantity * item.price).toFixed(2)}</p>
+                      <p className="text-gray-900">
+                        ${(item.quantity * item.price).toFixed(2)}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -513,7 +638,9 @@ export function SalesPage() {
               <div className="p-4 bg-indigo-50 rounded-lg">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-900">Total Amount:</span>
-                  <span className="text-gray-900 text-2xl">${viewingOrder.totalAmount.toFixed(2)}</span>
+                  <span className="text-gray-900 text-2xl">
+                    ${viewingOrder.totalAmount.toFixed(2)}
+                  </span>
                 </div>
               </div>
             </div>
