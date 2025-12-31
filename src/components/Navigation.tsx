@@ -1,5 +1,13 @@
-import { Building2, LayoutDashboard, Package, ShoppingCart, Factory, AlertTriangle, LogOut } from 'lucide-react';
-import type { User, Page } from '../App';
+import {
+  Building2,
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  Factory,
+  AlertTriangle,
+  LogOut,
+} from "lucide-react";
+import type { User, Page } from "../App";
 
 interface NavigationProps {
   user: User;
@@ -9,13 +17,39 @@ interface NavigationProps {
   hasAccess: (page: Page) => boolean;
 }
 
-export function Navigation({ user, currentPage, onNavigate, onLogout, hasAccess }: NavigationProps) {
+export function Navigation({
+  user,
+  currentPage,
+  onNavigate,
+  onLogout,
+  hasAccess,
+}: NavigationProps) {
   const navItems: { page: Page; label: string; icon: React.ReactNode }[] = [
-    { page: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
-    { page: 'inventory', label: 'Inventory', icon: <Package className="w-5 h-5" /> },
-    { page: 'sales', label: 'Sales', icon: <ShoppingCart className="w-5 h-5" /> },
-    { page: 'production', label: 'Production', icon: <Factory className="w-5 h-5" /> },
-    { page: 'alerts', label: 'Alerts', icon: <AlertTriangle className="w-5 h-5" /> },
+    {
+      page: "dashboard",
+      label: "Dashboard",
+      icon: <LayoutDashboard className="w-5 h-5" />,
+    },
+    {
+      page: "inventory",
+      label: "Inventory",
+      icon: <Package className="w-5 h-5" />,
+    },
+    {
+      page: "sales",
+      label: "Sales",
+      icon: <ShoppingCart className="w-5 h-5" />,
+    },
+    {
+      page: "production",
+      label: "Production",
+      icon: <Factory className="w-5 h-5" />,
+    },
+    {
+      page: "alerts",
+      label: "Alerts",
+      icon: <AlertTriangle className="w-5 h-5" />,
+    },
   ];
 
   return (
@@ -32,15 +66,15 @@ export function Navigation({ user, currentPage, onNavigate, onLogout, hasAccess 
           <div className="flex items-center gap-1">
             {navItems.map((item) => {
               if (!hasAccess(item.page)) return null;
-              
+
               return (
                 <button
                   key={item.page}
                   onClick={() => onNavigate(item.page)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                     currentPage === item.page
-                      ? 'bg-indigo-50 text-indigo-600'
-                      : 'text-gray-600 hover:bg-gray-50'
+                      ? "bg-indigo-50 text-indigo-600"
+                      : "text-gray-600 hover:bg-gray-50"
                   }`}
                 >
                   {item.icon}
@@ -54,7 +88,9 @@ export function Navigation({ user, currentPage, onNavigate, onLogout, hasAccess 
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-gray-900 text-sm">{user.name}</p>
-              <p className="text-gray-500 text-xs capitalize">{user.role.replace('_', ' ')}</p>
+              <p className="text-gray-500 text-xs capitalize">
+                {user?.role?.replace("_staff", "")}
+              </p>
             </div>
             <button
               onClick={onLogout}
