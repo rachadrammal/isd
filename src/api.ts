@@ -43,93 +43,99 @@ export const authAPI = {
 // ==============================
 // INVENTORY API
 // ==============================
+
 export const inventoryAPI = {
-  getWarehouse: (warehouseType: string) =>
-    api.get(`/inventory/${warehouseType}`).then((r) => r.data),
+  // Fetch all items in a warehouse
+  getWarehouse: async (warehouseType: string) => {
+    const res = await fetch(
+      `http://localhost:5000/api/inventory/${warehouseType}`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+    if (!res.ok) throw new Error("Failed to fetch warehouse");
+    return res.json();
+  },
 
-  addItem: (warehouseType: string, item: any) =>
-    api.post(`/inventory/${warehouseType}`, item).then((r) => r.data),
+  addItem: async (warehouseType: string, payload: any) => {
+    const res = await fetch(
+      `http://localhost:5000/api/inventory/${warehouseType}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+    if (!res.ok) throw new Error("Failed to add item");
+    return res.json();
+  },
 
-  updateItem: (warehouseType: string, itemId: string, item: any) =>
-    api.put(`/inventory/${warehouseType}/${itemId}`, item).then((r) => r.data),
+  updateItem: async (id: string, payload: any) => {
+    const res = await fetch(`http://localhost:5000/api/inventory/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to update item");
+    return res.json();
+  },
 
-  deleteItem: (warehouseType: string, itemId: string) =>
-    api.delete(`/inventory/${warehouseType}/${itemId}`).then((r) => r.data),
+  deleteItem: async (id: string) => {
+    const res = await fetch(`http://localhost:5000/api/inventory/${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    });
+    if (!res.ok) throw new Error("Failed to delete item");
+    return res.json();
+  },
 
-  transferItem: (
-    fromWarehouse: string,
-    toWarehouse: string,
-    itemId: string,
-    quantity?: number
-  ) =>
-    api
-      .post("/inventory/transfer", {
-        from_warehouse: fromWarehouse,
-        to_warehouse: toWarehouse,
-        item_id: itemId,
-        quantity,
-      })
-      .then((r) => r.data),
+  transferItem: async (
+    sourceWarehouse: string,
+    targetWarehouse: string,
+    id: string,
+    qty: number
+  ) => {
+    const res = await fetch(`http://localhost:5000/api/inventory/transfer`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify({ sourceWarehouse, targetWarehouse, id, qty }),
+    });
+    if (!res.ok) throw new Error("Failed to transfer item");
+    return res.json();
+  },
+  getArchive: async () => {
+    const res = await fetch(`http://localhost:5000/api/inventory/archive`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    });
+    if (!res.ok) throw new Error("Failed to fetch archive");
+    return res.json();
+  },
 };
 
-// ==============================
-// SALES API
-// ==============================
-export const salesAPI = {
-  getOrders: () => api.get("/orders").then((r) => r.data),
-
-  createOrder: (order: any) => api.post("/orders", order).then((r) => r.data),
-
-  updateOrder: (orderId: string, updates: any) =>
-    api.put(`/orders/${orderId}`, updates).then((r) => r.data),
-};
-
-// ==============================
-// PRODUCTION API
-// ==============================
-export const productionAPI = {
-  getProducts: () => api.get("/production/products").then((r) => r.data),
-
-  getRuns: () => api.get("/production/runs").then((r) => r.data),
-
-  getArchivedRuns: () => api.get("/production/archived").then((r) => r.data),
-
-  createRun: (run: any) =>
-    api.post("/production/runs", run).then((r) => r.data),
-
-  updateRun: (runId: string, updates: any) =>
-    api.put(`/production/runs/${runId}`, updates).then((r) => r.data),
-
-  updateMachineStatus: (runId: string, stopped: boolean, reason?: string) =>
-    api
-      .post(`/production/runs/${runId}/machine-status`, {
-        machine_stopped: stopped,
-        reason,
-      })
-      .then((r) => r.data),
-};
-
-// ==============================
-// ALERTS API (ADMIN)
-// ==============================
+//ALERTS API
 export const alertsAPI = {
-  getAlerts: () => api.get("/alerts").then((r) => r.data),
-
-  createAlert: (alert: any) => api.post("/alerts", alert).then((r) => r.data),
-
-  updateAlert: (alertId: string, updates: any) =>
-    api.put(`/alerts/${alertId}`, updates).then((r) => r.data),
-
-  getCameras: () => api.get("/cameras").then((r) => r.data),
-
-  analyzeCameraFeed: (cameraId: string, frameBase64: string) =>
-    api
-      .post(`/cameras/${cameraId}/analyze`, {
-        frame_base64: frameBase64,
-      })
-      .then((r) => r.data),
+  getAlerts: async () => {
+    const res = await api.get("/alerts");
+    return res.data;
+  },
+  updateStatus: async (id: string, status: string) => {
+    const res = await api.put(`/alerts/${id}/status`, { status });
+    return res.data;
+  },
 };
-
 // ==============================
 // DASHBOARD API (ADMIN)
 // ==============================

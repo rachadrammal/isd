@@ -1,0 +1,15 @@
+path: C:/Users/ASUS TUF F15/Desktop/push/src/backend/dataset
+
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 1
+names: ["box"]
+
+roboflow:
+  workspace: nikhilspace
+  project: box-detection-1fruv
+  version: 6
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/nikhilspace/box-detection-1fruv/dataset/6

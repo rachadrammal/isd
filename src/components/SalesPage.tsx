@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useEffect } from "react";
 import {
   Plus,
   Search,
@@ -31,88 +32,46 @@ interface Order {
   deliveryDate: string;
 }
 
-const availableProducts = [
-  { id: "1", name: "Product Alpha", price: 25.99, stock: 450 },
-  { id: "2", name: "Product Beta", price: 89.99, stock: 125 },
-  { id: "3", name: "Product Gamma", price: 15.5, stock: 780 },
-  { id: "4", name: "Product Delta", price: 42.0, stock: 95 },
-  { id: "5", name: "Product Epsilon", price: 67.5, stock: 320 },
-];
-
-const initialOrders: Order[] = [
-  {
-    id: "1",
-    orderNumber: "ORD-001",
-    customerName: "John Smith",
-    customerEmail: "john@example.com",
-    items: [
-      {
-        productId: "1",
-        productName: "Product Alpha",
-        quantity: 10,
-        price: 25.99,
-      },
-      {
-        productId: "2",
-        productName: "Product Beta",
-        quantity: 5,
-        price: 89.99,
-      },
-    ],
-    totalAmount: 709.85,
-    status: "completed",
-    orderDate: "2024-12-10",
-    deliveryDate: "2024-12-15",
-  },
-  {
-    id: "2",
-    orderNumber: "ORD-002",
-    customerName: "Jane Doe",
-    customerEmail: "jane@example.com",
-    items: [
-      {
-        productId: "3",
-        productName: "Product Gamma",
-        quantity: 25,
-        price: 15.5,
-      },
-    ],
-    totalAmount: 387.5,
-    status: "processing",
-    orderDate: "2024-12-12",
-    deliveryDate: "2024-12-18",
-  },
-  {
-    id: "3",
-    orderNumber: "ORD-003",
-    customerName: "Bob Wilson",
-    customerEmail: "bob@example.com",
-    items: [
-      {
-        productId: "4",
-        productName: "Product Delta",
-        quantity: 8,
-        price: 42.0,
-      },
-      {
-        productId: "5",
-        productName: "Product Epsilon",
-        quantity: 3,
-        price: 67.5,
-      },
-    ],
-    totalAmount: 538.5,
-    status: "pending",
-    orderDate: "2024-12-13",
-    deliveryDate: "2024-12-20",
-  },
-];
-
 export function SalesPage() {
-  const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
+  const [archivedOrders, setArchivedOrders] = useState<any[]>([]);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const pendingOrders = orders.filter((o) => o.status === "pending").length;
+  const processingOrders = orders.filter(
+    (o) => o.status === "processing"
+  ).length;
+
+  const token = localStorage.getItem("token");
+  const [tab, setTab] = useState<"active" | "archive">("active");
+  const authHeader: HeadersInit = token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/orders", { headers: authHeader })
+      .then((res) => res.json())
+      .then((data) => setOrders(data))
+      .catch(() => alert("Failed to load orders"));
+  }, []);
+  useEffect(() => {
+    fetch("http://localhost:5000/api/products", { headers: authHeader })
+      .then((res) => res.json())
+      .then((data) => setAvailableProducts(data))
+      .catch(() => alert("Failed to load products"));
+  }, []);
+  useEffect(() => {
+    fetch("http://localhost:5000/api/orders/archive", { headers: authHeader })
+      .then((res) => res.json())
+      .then((data) => setArchivedOrders(data))
+      .catch(() => alert("Failed to load archived orders"));
+  }, []);
+  useEffect(() => {
+    fetchOrders();
+  }, []);
 
   // New order form state
   const [customerName, setCustomerName] = useState("");
@@ -120,12 +79,18 @@ export function SalesPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [deliveryDate, setDeliveryDate] = useState("");
 
-  const filteredOrders = orders.filter(
-    (order) =>
-      order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerEmail.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOrders = orders.filter((order) => {
+    const orderNumber = order.orderNumber ?? "";
+    const customerName = order.customerName ?? "";
+    const customerEmail = order.customerEmail ?? "";
+    const query = (searchTerm ?? "").toLowerCase();
+
+    return (
+      orderNumber.toLowerCase().includes(query) ||
+      customerName.toLowerCase().includes(query) ||
+      customerEmail.toLowerCase().includes(query)
+    );
+  });
 
   const addProductToOrder = () => {
     const emptyItem: OrderItem = {
@@ -171,47 +136,91 @@ export function SalesPage() {
       0
     );
   };
-
-  const handleCreateOrder = () => {
-    if (!customerName || !customerEmail || orderItems.length === 0) {
-      alert("Please fill in all required fields and add at least one product");
-      return;
+  const fetchOrders = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/orders", {
+        headers: authHeader,
+      });
+      const data = await res.json();
+      setOrders(data);
+    } catch (err) {
+      console.error("Failed to load orders", err);
     }
-
-    const newOrder: Order = {
-      id: Date.now().toString(),
+  };
+  const handleCreateOrder = async () => {
+    const payload = {
       orderNumber: `ORD-${String(orders.length + 1).padStart(3, "0")}`,
       customerName,
       customerEmail,
-      items: orderItems,
+      items: (orderItems ?? []).map((i) => ({
+        productId: i.productId,
+        quantity: i.quantity,
+        price: i.price,
+      })),
       totalAmount: calculateTotal(),
-      status: "pending",
-      orderDate: new Date().toISOString().split("T")[0],
-      deliveryDate:
-        deliveryDate ||
-        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .split("T")[0],
     };
 
-    setOrders([newOrder, ...orders]);
+    const res = await fetch("http://localhost:5000/api/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify(payload),
+    });
 
-    // Reset form
-    setCustomerName("");
-    setCustomerEmail("");
-    setOrderItems([]);
-    setDeliveryDate("");
-    setShowCreateModal(false);
+    if (res.ok) {
+      const newOrder = await res.json();
+      setOrders([newOrder, ...orders]);
+      setShowCreateModal(false);
+    } else {
+      alert("Failed to create order");
+    }
   };
-
-  const updateOrderStatus = (orderId: string, status: Order["status"]) => {
-    setOrders(
-      orders.map((order) =>
-        order.id === orderId ? { ...order, status } : order
-      )
+  useEffect(() => {
+    fetch("http://localhost:5000/api/revenue", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setTotalRevenue(data.totalRevenue));
+  }, []);
+  const updateOrderStatus = async (
+    orderId: string,
+    status: Order["status"]
+  ) => {
+    const res = await fetch(
+      `http://localhost:5000/api/orders/${orderId}/status`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader,
+        },
+        body: JSON.stringify({ status }),
+      }
     );
-  };
 
+    if (res.ok) {
+      if (status === "pending" || status === "processing") {
+        // ✅ Refresh active orders immediately
+        fetchOrders();
+      } else {
+        // ✅ For completed/cancelled, refresh archive + revenue + orders
+        const archiveRes = await fetch(
+          "http://localhost:5000/api/orders/archive",
+          { headers: authHeader }
+        );
+        if (archiveRes.ok) {
+          const archiveData = await archiveRes.json();
+          setArchivedOrders(archiveData);
+        }
+        fetchRevenue();
+        fetchOrders();
+      }
+    } else {
+      alert("Failed to update status");
+    }
+  };
   const getStatusColor = (status: Order["status"]) => {
     switch (status) {
       case "pending":
@@ -226,14 +235,19 @@ export function SalesPage() {
         return "bg-gray-100 text-gray-700";
     }
   };
-
-  const totalRevenue = orders
-    .filter((o) => o.status === "completed")
-    .reduce((sum, o) => sum + o.totalAmount, 0);
-  const pendingOrders = orders.filter((o) => o.status === "pending").length;
-  const processingOrders = orders.filter(
-    (o) => o.status === "processing"
-  ).length;
+  const fetchRevenue = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/revenue", {
+        headers: {
+          Authorization: `Bearer ${token}`, // make sure token is defined
+        },
+      });
+      const data = await res.json();
+      setTotalRevenue(data.totalRevenue);
+    } catch (err) {
+      console.error("Failed to fetch revenue", err);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -320,102 +334,177 @@ export function SalesPage() {
           />
         </div>
       </div>
+      <div className="flex space-x-4 border-b border-gray-200 mb-6">
+        <button
+          onClick={() => setTab("active")}
+          className={`px-4 py-2 text-sm font-medium ${
+            tab === "active"
+              ? "border-b-2 border-blue-600 text-blue-600"
+              : "text-gray-600 hover:text-gray-800"
+          }`}
+        >
+          Active Orders
+        </button>
+        <button
+          onClick={() => setTab("archive")}
+          className={`px-4 py-2 text-sm font-medium ${
+            tab === "archive"
+              ? "border-b-2 border-blue-600 text-blue-600"
+              : "text-gray-600 hover:text-gray-800"
+          }`}
+        >
+          Archived Orders
+        </button>
+      </div>
 
       {/* Orders Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-gray-700 text-sm">
-                  Order #
-                </th>
-                <th className="px-6 py-3 text-left text-gray-700 text-sm">
-                  Customer
-                </th>
-                <th className="px-6 py-3 text-left text-gray-700 text-sm">
-                  Items
-                </th>
-                <th className="px-6 py-3 text-left text-gray-700 text-sm">
-                  Total
-                </th>
-                <th className="px-6 py-3 text-left text-gray-700 text-sm">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-gray-700 text-sm">
-                  Order Date
-                </th>
-                <th className="px-6 py-3 text-left text-gray-700 text-sm">
-                  Delivery Date
-                </th>
-                <th className="px-6 py-3 text-left text-gray-700 text-sm">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredOrders.map((order) => (
-                <tr key={order.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <p className="text-gray-900">{order.orderNumber}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div>
-                      <p className="text-gray-900">{order.customerName}</p>
-                      <p className="text-gray-500 text-sm">
-                        {order.customerEmail}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-gray-600">{order.items.length} items</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-gray-900">
-                      ${order.totalAmount.toFixed(2)}
-                    </p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <select
-                      value={order.status}
-                      onChange={(e) =>
-                        updateOrderStatus(
-                          order.id,
-                          e.target.value as Order["status"]
-                        )
-                      }
-                      className={`px-3 py-1 rounded text-sm ${getStatusColor(
-                        order.status
-                      )} border-0 cursor-pointer`}
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="processing">Processing</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-gray-600 text-sm">{order.orderDate}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-gray-600 text-sm">
-                      {order.deliveryDate}
-                    </p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => setViewingOrder(order)}
-                      className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                  </td>
+      {tab === "active" && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                    Order #
+                  </th>
+                  <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                    Customer
+                  </th>
+                  <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                    Items
+                  </th>
+                  <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                    Total
+                  </th>
+                  <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                    Actions
+                  </th>
+                  <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                    Order Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                    Delivery Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                    View
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredOrders.map((order) => (
+                  <tr key={order.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">{order.orderNumber}</td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="text-gray-900">{order.customerName}</p>
+                        <p className="text-gray-500 text-sm">
+                          {order.customerEmail}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {(order.items ?? []).length} items
+                    </td>
+                    <td className="px-6 py-4">
+                      ${(order.totalAmount ?? 0).toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4">{order.orderDate ?? "-"}</td>
+                    <td className="px-6 py-4">{order.deliveryDate ?? "-"}</td>
+                    <td className="px-6 py-4">
+                      <select
+                        value={order.status}
+                        onChange={(e) =>
+                          updateOrderStatus(
+                            order.id,
+                            e.target.value as "pending" | "processing"
+                          )
+                        }
+                        className={`px-3 py-1 rounded text-sm ${getStatusColor(
+                          order.status
+                        )} border-0 cursor-pointer`}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="processing">Processing</option>
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 flex gap-2">
+                      {" "}
+                      {/* <-- buttons per row */}
+                      <button
+                        onClick={() => updateOrderStatus(order.id, "completed")}
+                        className="bg-green-600 text-white px-3 py-1 rounded"
+                      >
+                        Complete
+                      </button>
+                      <button
+                        onClick={() => updateOrderStatus(order.id, "cancelled")}
+                        className="bg-red-600 text-white px-3 py-1 rounded"
+                      >
+                        Cancel
+                      </button>
+                    </td>
+                    <td className="px-6 py-4">{order.orderDate}</td>
+                    <td className="px-6 py-4">{order.deliveryDate}</td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => setViewingOrder(order)}
+                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
+      {/* Archived Orders Table */}
+      {tab === "archive" && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mt-6">
+          <h2 className="px-6 py-3 text-gray-900">Archived Orders</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                    Order ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                    Customer
+                  </th>
+                  <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                    Action
+                  </th>
+                  <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                    Performed By
+                  </th>
+                  <th className="px-6 py-3 text-left text-gray-700 text-sm">
+                    Timestamp
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {archivedOrders.map((log) => (
+                  <tr key={log.id}>
+                    <td className="px-6 py-4">{log.orderId}</td>
+                    <td className="px-6 py-4">
+                      {log.customerName} ({log.customerEmail})
+                    </td>
+                    <td className="px-6 py-4">{log.action}</td>
+                    <td className="px-6 py-4">{log.performedBy}</td>
+                    <td className="px-6 py-4">{log.timestamp}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Create Order Modal */}
       {showCreateModal && (
@@ -487,8 +576,7 @@ export function SalesPage() {
                         <option value="">Select product</option>
                         {availableProducts.map((product) => (
                           <option key={product.id} value={product.id}>
-                            {product.name} - ${product.price} (Stock:{" "}
-                            {product.stock})
+                            {product.name} - ${product.price}
                           </option>
                         ))}
                       </select>

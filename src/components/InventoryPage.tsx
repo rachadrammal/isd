@@ -81,6 +81,7 @@ export const InventoryPage: FC = () => {
   const [transferQty, setTransferQty] = useState(0);
   const [targetWarehouse, setTargetWarehouse] = useState("");
 
+  const [deleteItem, setDeleteItem] = useState<InventoryItem | null>(null);
   // Fetch inventory per warehouse
   useEffect(() => {
     let isMounted = true;
@@ -104,6 +105,30 @@ export const InventoryPage: FC = () => {
     };
   }, [activeWarehouse]);
 
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+    setError("");
+
+    const fetchData = async () => {
+      try {
+        const data =
+          activeWarehouse === "archive"
+            ? await inventoryAPI.getArchive()
+            : await inventoryAPI.getWarehouse(activeWarehouse);
+        if (isMounted) setItems(data ?? []);
+      } catch {
+        if (isMounted) setError("Failed to load inventory");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchData();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeWarehouse]);
   // Add item
   const handleAddItem = async () => {
     if (!newItem.product_id || newItem.quantity <= 0) {
@@ -130,6 +155,7 @@ export const InventoryPage: FC = () => {
       alert("Failed to add item");
     }
   };
+
   const handleEditClick = (item: InventoryItem) => {
     setEditingItem(item);
     setEditForm({
@@ -138,6 +164,63 @@ export const InventoryPage: FC = () => {
       price: item.price,
       location: item.location,
     });
+  };
+  // Save edited item
+  const handleSaveEdit = async () => {
+    if (!editingItem) return;
+    try {
+      await inventoryAPI.updateItem(editingItem.id, {
+        quantity: editForm.quantity,
+        min_stock: editForm.min_stock,
+        price: editForm.price,
+        location: editForm.location,
+      });
+      const data = await inventoryAPI.getWarehouse(activeWarehouse);
+      setItems(data ?? []);
+      setEditingItem(null);
+    } catch {
+      alert("Failed to update item");
+    }
+  };
+
+  // Delete item
+  const handleDeleteItem = async (id: string) => {
+    try {
+      await inventoryAPI.deleteItem(id);
+      const data = await inventoryAPI.getWarehouse(activeWarehouse);
+      setItems(data ?? []);
+      setDeleteItem(null);
+    } catch {
+      alert("Failed to delete item");
+    }
+  };
+
+  // Transfer item
+  const handleTransferItem = async () => {
+    if (!transferItem || !targetWarehouse || transferQty <= 0) {
+      alert("Select target warehouse and a valid quantity");
+      return;
+    }
+    if (transferQty > transferItem.quantity) {
+      alert("Transfer quantity exceeds available stock");
+      return;
+    }
+
+    try {
+      await inventoryAPI.transferItem(
+        activeWarehouse,
+        targetWarehouse,
+        transferItem.id,
+        transferQty
+      );
+      const data = await inventoryAPI.getWarehouse(activeWarehouse);
+      setItems(data ?? []);
+      setTransferItem(null);
+      setTransferQty(0);
+      setTargetWarehouse("");
+    } catch {
+      alert("Failed to transfer item");
+    }
   };
 
   // Derived data
@@ -208,7 +291,7 @@ export const InventoryPage: FC = () => {
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
         <StatCard
-          title="Products in Raw Materials Warehouse"
+          title={`Products in ${warehouseLabels[activeWarehouse]}`}
           value={items.length}
         />
         <StatCard title="Low Stock Items" value={lowStock} danger />
@@ -238,6 +321,44 @@ export const InventoryPage: FC = () => {
           <p className="p-6 text-center">Loading...</p>
         ) : error ? (
           <p className="p-6 text-center text-red-600">{error}</p>
+        ) : activeWarehouse === "archive" ? (
+          // Archive table
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="px-6 py-3 text-left">SKU</th>
+                <th className="px-6 py-3 text-left">Field</th>
+                <th className="px-6 py-3 text-left">Old Value</th>
+                <th className="px-6 py-3 text-left">New Value</th>
+                <th className="px-6 py-3 text-left">Edited By</th>
+                <th className="px-6 py-3 text-left">Timestamp</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((log: any) => (
+                <tr key={log.id} className="border-b">
+                  <td className="px-6 py-4">{log.sku}</td>
+                  <td className="px-6 py-4">{log.field}</td>
+                  <td className="px-6 py-4">{log.old_value}</td>
+                  <td className="px-6 py-4">{log.new_value}</td>
+                  <td className="px-6 py-4">{log.edited_by}</td>
+                  <td className="px-6 py-4">
+                    {new Date(log.timestamp).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+              {items.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="px-6 py-6 text-center text-gray-500"
+                  >
+                    No archive logs found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         ) : (
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
@@ -272,13 +393,25 @@ export const InventoryPage: FC = () => {
                   <td className="px-6 py-4">{i.expiry_date || "N/A"}</td>
                   <td className="px-6 py-4">{i.location}</td>
                   <td className="px-6 py-4 flex gap-3">
-                    <button className="text-indigo-600 hover:underline">
+                    <button
+                      className="text-indigo-600 hover:underline"
+                      onClick={() => {
+                        handleEditClick(i);
+                        // preset editForm (already done in handleEditClick)
+                      }}
+                    >
                       Edit
                     </button>
-                    <button className="text-yellow-600 hover:underline">
+                    <button
+                      className="text-yellow-600 hover:underline"
+                      onClick={() => setTransferItem(i)}
+                    >
                       Transfer
                     </button>
-                    <button className="text-red-600 hover:underline">
+                    <button
+                      className="text-red-600 hover:underline"
+                      onClick={() => setDeleteItem(i)}
+                    >
                       Delete
                     </button>
                   </td>
@@ -363,6 +496,134 @@ export const InventoryPage: FC = () => {
               </button>
               <button
                 onClick={() => setShowAddModal(false)}
+                className="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Edit Modal */}
+      {editingItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl w-[500px]">
+            <h2 className="text-lg mb-4 font-medium">Edit Product</h2>
+
+            <div className="grid grid-cols-2 gap-3">
+              <NumberInput
+                label="Quantity"
+                value={editForm.quantity}
+                onChange={(v) => setEditForm({ ...editForm, quantity: v })}
+              />
+              <NumberInput
+                label="Min stock"
+                value={editForm.min_stock}
+                onChange={(v) => setEditForm({ ...editForm, min_stock: v })}
+              />
+              <NumberInput
+                label="Price"
+                step={0.01}
+                value={editForm.price}
+                onChange={(v) => setEditForm({ ...editForm, price: v })}
+              />
+            </div>
+
+            <TextInput
+              label="Location"
+              value={editForm.location}
+              onChange={(v) => setEditForm({ ...editForm, location: v })}
+              className="mt-3"
+            />
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleSaveEdit}
+                className="flex-1 bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setEditingItem(null)}
+                className="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Transfer Modal */}
+      {transferItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl w-[500px]">
+            <h2 className="text-lg mb-4 font-medium">Transfer Product</h2>
+
+            <NumberInput
+              label="Transfer quantity"
+              value={transferQty}
+              onChange={(v) => setTransferQty(v)}
+            />
+
+            <label className="block mt-3">
+              <span className="block text-sm text-gray-700 mb-1">
+                Target warehouse
+              </span>
+              <select
+                className="w-full border p-2 rounded"
+                value={targetWarehouse}
+                onChange={(e) => setTargetWarehouse(e.target.value)}
+              >
+                {(Object.keys(warehouseLabels) as WarehouseType[])
+                  .filter((w) => w !== activeWarehouse)
+                  .map((w) => (
+                    <option key={w} value={w}>
+                      {warehouseLabels[w]}
+                    </option>
+                  ))}
+              </select>
+            </label>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleTransferItem}
+                className="flex-1 bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700"
+              >
+                Transfer
+              </button>
+              <button
+                onClick={() => {
+                  setTransferItem(null);
+                  setTransferQty(0);
+                  setTargetWarehouse("");
+                }}
+                className="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Delete Confirmation Modal */}
+      {deleteItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl w-[420px]">
+            <h2 className="text-lg mb-4 font-medium">Confirm Delete</h2>
+            <p className="text-gray-700">
+              Are you sure you want to delete <b>{deleteItem.product_id}</b>{" "}
+              (SKU {deleteItem.sku})?
+            </p>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => handleDeleteItem(deleteItem.id)}
+                className="flex-1 bg-red-600 text-white py-2 rounded hover:bg-red-700"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setDeleteItem(null)}
                 className="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300"
               >
                 Cancel
