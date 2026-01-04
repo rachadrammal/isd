@@ -1,5 +1,4 @@
-# Python Backend Requirements
-# Install with: pip install -r requirements.txt
+
 
 Flask==2.3.0
 Flask-CORS==4.0.0
