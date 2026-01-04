@@ -12,8 +12,14 @@ PyJWT==2.8.0
 bcrypt==4.1.2  # For password hashing
 
 flask
-flask-cors
+flask_sqlalchemy
+flask_bcrypt
+flask_cors
+flask_migrate
+psycopg2-binary
+requests
 PyJWT
+pytest
 
 # For production database (uncomment when ready)
  psycopg2-binary==2.9.0  # PostgreSQL adapter
