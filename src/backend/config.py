@@ -10,7 +10,7 @@ class Config:
     FLASK_ENV = os.environ.get('FLASK_ENV') or 'development'
     
     # Database
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL") + "?connect_timeout=5"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = os.environ.get('SQLALCHEMY_ECHO', 'False').lower() == 'true'
     
