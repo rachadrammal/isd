@@ -25,5 +25,3 @@ def test_health_route(test_app):
 def test_app_exists():
     """Basic sanity check: app object is defined"""
     assert test_app is not None
-
-    print("Starting test_app.py...")
