@@ -41,6 +41,12 @@ jobs:
       - name: Set PYTHONPATH
         run: echo "PYTHONPATH=$(pwd)/src" >> $GITHUB_ENV
 
+      - name: Wait for Postgres
+        run: |
+          until pg_isready -h localhost -p 5432 -U companyuser; do
+            echo "Waiting for Postgres..."
+            sleep 2
+          done
       - name: Run tests with coverage
         env:
           DATABASE_URL: postgresql://companyuser:companypass123@localhost:5432/companydb
