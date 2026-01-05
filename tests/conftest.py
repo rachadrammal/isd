@@ -1,10 +1,13 @@
+# tests/conftest.py
 import pytest
-from backend.app import app, db
+from backend import app as backend_app, db
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_database():
-    with app.app_context():
+    # Import inside the fixture so Postgres service is ready
+    application = backend_app.app  # or however you expose the Flask app
+    with application.app_context():
         db.create_all()
     yield
-    with app.app_context():
+    with application.app_context():
         db.drop_all()
