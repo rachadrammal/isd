@@ -1480,6 +1480,19 @@ if __name__ == '__main__':
     print("\nSee code comments marked with 'AI MODEL INTEGRATION' for details")
     print("=" * 80)
     print("\n")
+
+@app.route("/hello", methods=["GET"])
+def hello():
+    return {"message": "Hello, world!"}, 200
+
+
+@app.route("/add", methods=["POST"])
+def add_numbers():
+    data = request.get_json() or {}
+    a = data.get("a", 0)
+    b = data.get("b", 0)
+    return {"result": a + b}, 200
+
 # Run this once inside your app.py after defining models
 if __name__ == "__main__":
     with app.app_context():
