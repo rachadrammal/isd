@@ -1,62 +1,71 @@
-name: Backend CI/CD
+name: Backend CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "develop"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "develop"]
 
 jobs:
-  build:
+  test:
+    name: Run tests & coverage
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:14
-        env:
-          POSTGRES_USER: companyuser
-          POSTGRES_PASSWORD: companypass123
-          POSTGRES_DB: companydb
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U companyuser -d companydb"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
+    env:
+      FLASK_ENV: testing
+      PYTHONPATH: src
+      DATABASE_URL: "sqlite:///:memory:"
+      SECRET_KEY: ci-secret-key
 
     steps:
-      - name: Checkout code
+      # --------------------------------------------------
+      # 1. Checkout code
+      # --------------------------------------------------
+      - name: Checkout repository
         uses: actions/checkout@v4
 
+      # --------------------------------------------------
+      # 2. Setup Python
+      # --------------------------------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
 
+      # --------------------------------------------------
+      # 3. Install dependencies
+      # --------------------------------------------------
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install --no-cache-dir -r requirements.txt
+          pip install -r requirements.txt
 
-      - name: Set PYTHONPATH
-        run: echo "PYTHONPATH=$(pwd)/src" >> $GITHUB_ENV
-
-      - name: Wait for Postgres
+      # --------------------------------------------------
+      # 4. Run tests with coverage
+      # --------------------------------------------------
+      - name: Run pytest with coverage
         run: |
-          until pg_isready -h localhost -p 5432 -U companyuser; do
-            echo "Waiting for Postgres..."
-            sleep 2
-          done
+          pytest \
+            --cov=src/backend \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=50
 
-      - name: Run tests with coverage
-        env:
-          DATABASE_URL: postgresql://companyuser:companypass123@localhost:5432/companydb
-        run: python -m pytest --maxfail=1 --disable-warnings -q --cov=src/backend --cov-report=xml --cov-report=term
-
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v3
+      # --------------------------------------------------
+      # 5. Upload coverage report (artifact)
+      # --------------------------------------------------
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.xml
-          fail_ci_if_error: true
+          name: coverage-report
+          path: coverage.xml
+
+      # --------------------------------------------------
+      # 6. (Optional) Job summary
+      # --------------------------------------------------
+      - name: Coverage summary
+        run: |
+          echo "### ✅ Backend CI completed" >> $GITHUB_STEP_SUMMARY
+          echo "- Tests: Passed" >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage threshold: 50%" >> $GITHUB_STEP_SUMMARY

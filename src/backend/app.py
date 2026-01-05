@@ -1481,6 +1481,7 @@ if __name__ == '__main__':
     print("=" * 80)
     print("\n")
 # Run this once inside your app.py after defining models
-with app.app_context():
-    db.create_all()
-    app.run(debug=True, host='0.0.0.0', port=5000)
+if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
+    app.run(host="0.0.0.0", port=5000)
