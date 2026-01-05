@@ -17,19 +17,20 @@ jobs:
           POSTGRES_USER: companyuser
           POSTGRES_PASSWORD: companypass123
           POSTGRES_DB: companydb
-        ports: ["5432:5432"]
+        ports:
+          - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U companyuser"
+          --health-cmd="pg_isready -U companyuser -d companydb"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -40,6 +41,13 @@ jobs:
 
       - name: Set PYTHONPATH
         run: echo "PYTHONPATH=$(pwd)/src" >> $GITHUB_ENV
+
+      - name: Wait for Postgres
+        run: |
+          until pg_isready -h localhost -p 5432 -U companyuser; do
+            echo "Waiting for Postgres..."
+            sleep 2
+          done
 
       - name: Run tests with coverage
         env:
