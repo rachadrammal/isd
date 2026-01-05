@@ -1,5 +1,5 @@
 import pytest
-from src.backend.app import app
+from backend.app import app
 
 # Use Flask test client for testing routes
 @pytest.fixture
