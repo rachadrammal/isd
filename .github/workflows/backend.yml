@@ -1,35 +1,36 @@
-name: Backend CI/CD
+name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: [main]
   pull_request:
-    branches: ["main"]
+    branches: [main]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     services:
       postgres:
-        image: postgres:14
+        image: postgres:15
         env:
           POSTGRES_USER: companyuser
           POSTGRES_PASSWORD: companypass123
           POSTGRES_DB: companydb
-        ports: ["5432:5432"]
+        ports:
+          - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U companyuser"
+          --health-cmd="pg_isready -U companyuser -d companydb"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -47,18 +48,10 @@ jobs:
             echo "Waiting for Postgres..."
             sleep 2
           done
-      - name: Confirm Postgres connection
-        run: |
-          python -c "import psycopg2; psycopg2.connect('postgresql://companyuser:companypass123@localhost:5432/companydb')"
 
       - name: Run tests with coverage
         env:
           DATABASE_URL: postgresql://companyuser:companypass123@localhost:5432/companydb
-        run: python -m pytest --maxfail=1 --disable-warnings -q --cov=src/backend --cov-report=xml --cov-report=term
-
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.xml
-          fail_ci_if_error: true
+        run: |
+          python -m pytest --maxfail=1 --disable-warnings -q \
+            --cov=src/backend --cov-report=xml --cov-report=term
