@@ -33,12 +33,10 @@ jobs:
       - name: Run tests with coverage
         run: |
           pytest \
-            --cov=backend \
+            --cov \
             --cov-report=term-missing \
             --cov-report=xml \
-            --cov-fail-under=40 \
-            --cov-exclude="*/train_box.py" \
-            --cov-exclude="*/yolo_webcam.py"
+            --cov-fail-under=40
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
