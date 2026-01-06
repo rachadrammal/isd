@@ -7,17 +7,20 @@ Connect your AI models in the designated sections marked with # AI MODEL INTEGRA
 import uuid
 from functools import wraps
 from flask_migrate import Migrate
-import requests
-
+import cv2
+import os
+from flask import Response
 from datetime import datetime, timedelta, timezone
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import jwt
-from sympy import product
+from yolo_webcam import run_ai_on_frame
+import sys
+sys.path.append(os.path.dirname(__file__))
+from flask_migrate import Migrate, upgrade
 
-#from fastapi import FastAPI
-#from lag_llama import LagLlamaEstimator
-#import torch
+
+
 
 
 app = Flask(__name__)
@@ -31,26 +34,30 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
-app.config['SQLALCHEMY_DATABASE_URI'] = (
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
+    "DATABASE_URL",
     "postgresql://companyuser:companypass123@localhost:5432/companydb"
 )
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
-
 bcrypt = Bcrypt(app)
 
-CORS(app)  # Enable CORS for React frontend
+with app.app_context():
+    upgrade()
 
-# Configuration
-app.config['SECRET_KEY'] = 'your-secret-key-change-in-production'
+
+
+
+app.config['SECRET_KEY'] = os.getenv(
+    "SECRET_KEY",
+    "dev-secret-do-not-use"
+)
 app.config['JWT_EXPIRATION_HOURS'] = 24
 
 CAMERA_ID = "cam_wharehouse"
-BACKEND_URL = "http://localhost:5000/api/alerts"
-TOKEN = "YOUR_JWT_TOKEN"
-HEADERS = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
 UTC = timezone.utc
 
 def create_access_token(identity):
@@ -225,11 +232,7 @@ class RecipeItem(db.Model):
     unit = db.Column(db.String(20))
 
     
-production_db = {
-    'products': [],
-    'production_runs': [],
-    'archived_runs': []
-}
+
 
 # Alerts data
 class Alert(db.Model):
@@ -252,9 +255,7 @@ class Alert(db.Model):
     resolved_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-inventory_db = []
-alerts_db = []
-orders_db = []
+
 # Camera feeds data
 class Camera(db.Model):
     __tablename__ = "cameras"
@@ -292,9 +293,11 @@ def token_required(f):
             if not current_user or not current_user.is_active:
                 return jsonify({'message': 'User not found or inactive'}), 401
 
-        except:
-            return jsonify({'message': 'Token is invalid'}), 401
-
+        except jwt.ExpiredSignatureError:
+            return jsonify({'message': 'Token expired'}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({'message': 'Invalid token'}), 401
+        
         return f(current_user, *args, **kwargs)
 
     return decorated
@@ -939,7 +942,15 @@ def get_production_run(current_user, run_id):
         "completionDate": run.completion_date.isoformat() if run.completion_date else None,
         "assignedTo": run.assigned_to,
         "createdBy": run.created_by,
-        "recipe" : run.recipe
+        "recipe": [
+    {
+        "ingredientId": ri.ingredient_id,
+        "quantity": float(ri.quantity),
+        "unit": ri.unit
+    }
+    for ri in RecipeItem.query.filter_by(product_id=run.product_id).all()
+]
+
     })
 
 @app.route('/api/production/runs', methods=['POST'])
@@ -1008,7 +1019,6 @@ def create_production_run(current_user):
 
     return jsonify({'message': 'Production run created successfully', 'run': data}), 201
 
-from datetime import datetime, UTC
 
 @app.route('/api/production/runs/<string:run_number>', methods=['PUT'])
 @token_required
@@ -1166,65 +1176,57 @@ def update_machine_status(current_user, run_id):
 # ============================================================================
 # ALERTS & MONITORING ENDPOINTS (Admin Only)
 # ============================================================================
-@app.route("/api/alerts", methods=["POST"])
-@token_required
-def post_alert(alert_type, severity, message, metadata=None):
-    payload = {
-        "id": str(uuid.uuid4()),
-        "type": alert_type,
-        "severity": severity,
-        "title": f"{alert_type.capitalize()} Alert",
-        "description": message,
-        "camera_id": CAMERA_ID,
-        "ai_confidence": metadata.get("conf", 0),
-        "data": metadata or {},
-        "timestamp": datetime.now(UTC).isoformat()
-    }
-    try:
-        r = requests.post(BACKEND_URL, json=payload, headers=HEADERS, timeout=5)
-        print("Alert posted:", r.status_code, message)
-    except Exception as e:
-        print("Error posting alert:", e)
 
-@app.route("/api/alerts", methods=["GET"])
-@token_required
-def list_alerts_admin(current_user):
-    alerts = Alert.query.order_by(Alert.created_at.desc()).all()
-    return jsonify([
-        {
-            "id": a.id,
-            "cameraId": a.camera_id,
-            "type": a.type,
-            "severity": a.severity,
-            "description": a.description,
-            "timestamp": a.created_at.isoformat(),
-            "status": a.status,
-            "aiConfidence": float(a.ai_confidence),
-            "imageUrl": None
-        } for a in alerts
-    ])
 
 @app.route("/api/alerts", methods=["POST"])
 @token_required
-def create_alert_admin(current_user):
+def create_alert(current_user):
     data = request.get_json()
+
     alert = Alert(
-        id=data.get("id", str(uuid.uuid4())),
+        id=data.get("id") or str(uuid.uuid4()),
         type=data["type"],
         severity=data["severity"],
-        title=data.get("title", ""),
+        title=data.get("title"),
         description=data["description"],
         camera_id=data["camera_id"],
-        status="new",
-        ai_confidence=data.get("ai_confidence", 0),
-        data=data.get("data", {}),
-        created_at=datetime.now(timezone.utc)
+        status=data.get("status", "new"),
+        ai_confidence=data.get("ai_confidence"),
+        data=data.get("data"),
+        created_at=datetime.utcnow()
     )
     db.session.add(alert)
     db.session.commit()
-    return jsonify({"message": "Alert stored"}), 201
+
+    return jsonify({"message": "Alert created", "id": alert.id}), 201
 
 
+
+
+def get_camera():
+    cam = cv2.VideoCapture(0)
+    if not cam.isOpened():
+        raise RuntimeError("Camera not accessible")
+    return cam
+
+def gen_frames():
+    camera = get_camera()
+    while True:
+        success, frame = camera.read()
+        if not success:
+            break
+
+        frame = run_ai_on_frame(frame)
+
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame_bytes = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(gen_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 
@@ -1232,25 +1234,7 @@ def create_alert_admin(current_user):
 # ALERTS ENDPOINTS
 # -------------------------
 
-@app.route("/api/alerts", methods=["POST"])
-@token_required
-def create_alert(current_user):
-    data = request.get_json()
-    alert = Alert(
-        id=data.get("id", str(uuid.uuid4())),
-        type=data["type"],
-        severity=data["severity"],
-        title=data.get("title", ""),
-        description=data["description"],
-        camera_id=data["camera_id"],
-        status=data.get("status", "new"),
-        ai_confidence=data.get("ai_confidence", 0),
-        data=data.get("data", {}),
-        created_at=datetime.now(timezone.utc)
-    )
-    db.session.add(alert)
-    db.session.commit()
-    return jsonify({"message": "Alert stored"}), 201
+
 
 
 @app.route("/api/alerts", methods=["GET"])
@@ -1368,21 +1352,122 @@ def analyze_camera_feed(current_user, camera_id):
 # DASHBOARD & ANALYTICS ENDPOINTS
 # ============================================================================
 
-@app.route('/api/dashboard/stats', methods=['GET'])
+# ============================================================================
+# DASHBOARD ANALYTICS ENDPOINTS
+# ============================================================================
+
+@app.route('/api/dashboard/metrics', methods=['GET'])
 @token_required
-@admin_required
-def get_dashboard_stats(current_user):
-    """Get dashboard statistics"""
+def get_dashboard_metrics(current_user):
+    revenue = db.session.query(db.func.sum(OrderArchive.total_amount)).filter_by(action="completed").scalar() or 0
+    orders = db.session.query(Order).count()
+    production = db.session.query(db.func.sum(ProductionRun.quantity)).scalar() or 0
+    inventory = db.session.query(db.func.sum(InventoryItem.quantity)).scalar() or 0
 
-    stats = {
-        'total_inventory_items': sum(len(warehouse) for warehouse in inventory_db.values()),
-        'total_orders': len(orders_db),
-        'active_production_runs': len(production_db['production_runs']),
-        'pending_alerts': len([a for a in alerts_db if a.get('status') == 'new']),
-        'revenue': sum(order.get('totalAmount', 0) 
-                       for order in orders_db if order.get('status') == 'completed'),
-    }
+    return jsonify({
+        "totalRevenue": round(float(revenue), 2),
+        "totalOrders": orders,
+        "productionOutput": production,
+        "inventoryItems": inventory
+    })
 
+
+@app.route('/api/dashboard/sales-performance', methods=['GET'])
+@token_required
+def get_sales_performance(current_user):
+    # Active orders
+    active_results = (
+        db.session.query(
+            db.func.to_char(Order.order_date, 'Mon').label('month'),
+            db.func.sum(Order.total_amount).label('sales'),
+            db.func.count(Order.id).label('orders')
+        )
+        .group_by('month')
+        .order_by(db.func.min(Order.order_date))
+        .all()
+    )
+
+    # Archived orders
+    archived_results = (
+        db.session.query(
+            db.func.to_char(OrderArchive.timestamp, 'Mon').label('month'),
+            db.func.sum(OrderArchive.total_amount).label('sales'),
+            db.func.count(OrderArchive.id).label('orders')
+        )
+        .group_by('month')
+        .order_by(db.func.min(OrderArchive.timestamp))
+        .all()
+    )
+
+    # Merge both sets
+    combined = {}
+    for r in active_results:
+        combined[r.month] = {
+            "month": r.month,
+            "sales": float(r.sales or 0),
+            "orders": r.orders or 0
+        }
+    for r in archived_results:
+        if r.month in combined:
+            combined[r.month]["sales"] += float(r.sales or 0)
+            combined[r.month]["orders"] += r.orders or 0
+        else:
+            combined[r.month] = {
+                "month": r.month,
+                "sales": float(r.sales or 0),
+                "orders": r.orders or 0
+            }
+
+    # Return sorted by month order
+    return jsonify(list(combined.values()))
+
+
+@app.route('/api/dashboard/production-performance', methods=['GET'])
+@token_required
+def get_production_performance(current_user):
+    results = (
+        db.session.query(
+            db.func.to_char(ProductionRun.start_date, 'Mon').label('month'),
+            db.func.sum(ProductionRun.quantity).label('produced')
+        )
+        .group_by('month')
+        .order_by(db.func.min(ProductionRun.start_date))
+        .all()
+    )
+    return jsonify([
+        {"month": r.month, "produced": r.produced, "target": 1000}
+        for r in results
+    ])
+
+
+@app.route('/api/dashboard/inventory-distribution', methods=['GET'])
+@token_required
+def get_inventory_distribution(current_user):
+    results = (
+        db.session.query(Warehouse.type, db.func.sum(InventoryItem.quantity))
+        .join(Warehouse, InventoryItem.warehouse_id == Warehouse.id)
+        .group_by(Warehouse.type)
+        .all()
+    )
+    return jsonify([
+        {"name": r[0], "value": r[1]} for r in results
+    ])
+
+@app.route('/api/dashboard/recent-activities', methods=['GET'])
+@token_required
+def get_recent_activities(current_user):
+    logs = InventoryArchive.query.order_by(InventoryArchive.timestamp.desc()).limit(5).all()
+    return jsonify([
+        {
+            "id": log.id,
+            "type": "inventory",
+            "message": f"{log.field} updated for SKU {log.sku}",
+            "time": log.timestamp.isoformat(),
+            "icon": "Package",
+            "color": "text-indigo-600"
+        }
+        for log in logs
+    ])
     # ========================================================================
     # AI MODEL INTEGRATION - Predictive Analytics
     # ========================================================================
@@ -1465,6 +1550,17 @@ def internal_error(error):
 # ============================================================================
 # RUN APPLICATION
 # ============================================================================
+@app.route("/hello", methods=["GET"])
+def hello():
+    return {"message": "Hello, world!"}, 200
+
+
+@app.route("/add", methods=["POST"])
+def add_numbers():
+    data = request.get_json() or {}
+    a = data.get("a", 0)
+    b = data.get("b", 0)
+    return {"result": a + b}, 200
 
 if __name__ == '__main__':
     print("=" * 80)
@@ -1480,21 +1576,10 @@ if __name__ == '__main__':
     print("\nSee code comments marked with 'AI MODEL INTEGRATION' for details")
     print("=" * 80)
     print("\n")
-
-@app.route("/hello", methods=["GET"])
-def hello():
-    return {"message": "Hello, world!"}, 200
-
-
-@app.route("/add", methods=["POST"])
-def add_numbers():
-    data = request.get_json() or {}
-    a = data.get("a", 0)
-    b = data.get("b", 0)
-    return {"result": a + b}, 200
+    app.run(debug=True)
+    
+    
 
 # Run this once inside your app.py after defining models
-if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-    app.run(host="0.0.0.0", port=5000)
+
+  

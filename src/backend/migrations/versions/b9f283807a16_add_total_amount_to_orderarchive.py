@@ -23,3 +23,10 @@ def upgrade():
     
     def downgrade():
         op.drop_column('order_archive', 'total_amount')
+        
+def upgrade() -> None:
+       op.add_column('alerts', sa.Column('new_column_name', sa.String(255), nullable=True))
+
+
+def downgrade() -> None:
+       op.drop_column('alerts', 'new_column_name')        

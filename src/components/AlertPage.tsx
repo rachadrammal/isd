@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { alertsAPI } from "../api"; // adjust path if needed
+import { alertsAPI } from "../api";
 import {
   Camera,
   AlertTriangle,
@@ -37,7 +37,7 @@ interface Alert {
 
 const cameraFeeds: CameraFeed[] = [
   {
-    id: "cam1",
+    id: "cam_entrance",
     name: "Main Entrance",
     location: "Building A - Entrance",
     status: "active",
@@ -46,7 +46,7 @@ const cameraFeeds: CameraFeed[] = [
       "https://images.unsplash.com/photo-1557597774-9d273605dfa9?w=400&h=300&fit=crop",
   },
   {
-    id: "cam2",
+    id: "cam_production",
     name: "Production Floor",
     location: "Building B - Floor 1",
     status: "active",
@@ -55,7 +55,7 @@ const cameraFeeds: CameraFeed[] = [
       "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=300&fit=crop",
   },
   {
-    id: "cam3",
+    id: "cam_warehouse",
     name: "Warehouse",
     location: "Warehouse A",
     status: "active",
@@ -64,7 +64,7 @@ const cameraFeeds: CameraFeed[] = [
       "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400&h=300&fit=crop",
   },
   {
-    id: "cam4",
+    id: "cam_dock",
     name: "Loading Dock",
     location: "Building C - Dock",
     status: "active",
@@ -73,7 +73,7 @@ const cameraFeeds: CameraFeed[] = [
       "https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?w=400&h=300&fit=crop",
   },
   {
-    id: "cam5",
+    id: "cam_parking",
     name: "Parking Area",
     location: "Outdoor - Lot 1",
     status: "inactive",
@@ -82,7 +82,7 @@ const cameraFeeds: CameraFeed[] = [
       "https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=400&h=300&fit=crop",
   },
   {
-    id: "cam6",
+    id: "cam_quality",
     name: "Quality Control",
     location: "Building B - Floor 2",
     status: "active",
@@ -93,12 +93,15 @@ const cameraFeeds: CameraFeed[] = [
 ];
 
 export function AlertPage() {
+  const [showWebcam, setShowWebcam] = useState(false);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
+  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
   const [filterSeverity, setFilterSeverity] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [simulateLive, setSimulateLive] = useState(false);
+  const [activeCameraId, setActiveCameraId] = useState<string | null>(null);
 
   // Simulate live alerts
   useEffect(() => {
@@ -143,7 +146,7 @@ export function AlertPage() {
   }, [simulateLive]);
 
   const filteredAlerts = alerts.filter((alert) => {
-    if (selectedCamera && alert.cameraId !== selectedCamera) return false;
+    if (selectedCameraId && alert.cameraId !== selectedCameraId) return false;
     if (filterSeverity !== "all" && alert.severity !== filterSeverity)
       return false;
     if (filterStatus !== "all" && alert.status !== filterStatus) return false;
@@ -221,30 +224,14 @@ export function AlertPage() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setSimulateLive(!simulateLive)}
+            onClick={() => setShowWebcam(!showWebcam)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-              simulateLive
-                ? "bg-red-600 text-white hover:bg-red-700"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
-          >
-            <Video className="w-5 h-5" />
-            {simulateLive ? "Stop Simulation" : "Simulate Live"}
-          </button>
-          <button
-            onClick={() => setNotificationsEnabled(!notificationsEnabled)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-              notificationsEnabled
+              showWebcam
                 ? "bg-indigo-600 text-white hover:bg-indigo-700"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
             }`}
           >
-            {notificationsEnabled ? (
-              <Bell className="w-5 h-5" />
-            ) : (
-              <BellOff className="w-5 h-5" />
-            )}
-            Notifications
+            {showWebcam ? "Hide live" : "simulate live"}
           </button>
         </div>
       </div>
@@ -318,16 +305,16 @@ export function AlertPage() {
           {cameraFeeds.map((camera) => (
             <div
               key={camera.id}
-              className={`border rounded-lg overflow-hidden cursor-pointer transition-all ${
-                selectedCamera === camera.id
-                  ? "border-indigo-600 ring-2 ring-indigo-200"
-                  : "border-gray-200 hover:border-gray-300"
+              onClick={() => {
+                setSelectedCameraId(
+                  selectedCameraId === camera.id ? null : camera.id
+                );
+              }}
+              className={`cursor-pointer rounded-xl border p-4 shadow-sm transition ${
+                selectedCameraId === camera.id
+                  ? "border-indigo-600"
+                  : "border-gray-200"
               }`}
-              onClick={() =>
-                setSelectedCamera(
-                  selectedCamera === camera.id ? null : camera.id
-                )
-              }
             >
               <div className="relative">
                 <img
@@ -505,48 +492,18 @@ export function AlertPage() {
           )}
         </div>
       </div>
-
-      {/* AI Model Info */}
-      <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-200">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-6 h-6 text-white" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-gray-900 mb-2">AI Detection Models Active</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-600" />
-                <span className="text-gray-700">
-                  Face Recognition Model v2.1
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-600" />
-                <span className="text-gray-700">
-                  Anomaly Detection Model v1.8
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-600" />
-                <span className="text-gray-700">
-                  Safety Equipment Detection v1.5
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-600" />
-                <span className="text-gray-700">
-                  Behavior Analysis Model v2.0
-                </span>
-              </div>
-            </div>
-            <p className="text-gray-600 text-sm mt-3">
-              Note: These AI models are placeholders. In production, connect to
-              your Python backend API endpoints for real-time detection.
-            </p>
-          </div>
+      {showWebcam && (
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 mt-4">
+          <h3 className="text-gray-900 mb-2">AI Webcam Feed</h3>
+          <img
+            src={`http://localhost:5000/video_feed?token=${localStorage.getItem(
+              "token"
+            )}`}
+            alt="AI Webcam"
+            className="w-full max-w-2xl border rounded-lg"
+          />
         </div>
-      </div>
+      )}
     </div>
   );
 }
