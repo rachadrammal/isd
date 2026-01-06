@@ -45,11 +45,12 @@ db = SQLAlchemy(app)
 
 if os.getenv("FLASK_ENV") != "testing":
     migrate = Migrate(app, db)
+    with app.app_context():
+        upgrade()
 
 bcrypt = Bcrypt(app)
 
-with app.app_context():
-    upgrade()
+
 
 
 
