@@ -42,7 +42,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+
+if os.getenv("FLASK_ENV") != "testing":
+    migrate = Migrate(app, db)
+
 bcrypt = Bcrypt(app)
 
 with app.app_context():
