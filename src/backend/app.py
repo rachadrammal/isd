@@ -1,3 +1,8 @@
+"""
+Company Management System - Python Backend
+This Flask application serves as the backend API for the company management system.
+Connect your AI models in the designated sections marked with # AI MODEL INTEGRATION
+"""
 
 import uuid
 from functools import wraps
@@ -9,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import jwt
-from backend.yolo_webcam import run_ai_on_frame
+from yolo_webcam import run_ai_on_frame
 import sys
 sys.path.append(os.path.dirname(__file__))
 from flask_migrate import Migrate, upgrade
@@ -37,19 +42,23 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-from flask_migrate import Migrate
-import os
 
 if os.getenv("FLASK_ENV") != "testing":
     migrate = Migrate(app, db)
+    with app.app_context():
+        upgrade()
 
 bcrypt = Bcrypt(app)
 
-   
+
+
+
+
+
 app.config['SECRET_KEY'] = os.getenv(
     "SECRET_KEY",
     "dev-secret-do-not-use"
-    )
+)
 app.config['JWT_EXPIRATION_HOURS'] = 24
 
 CAMERA_ID = "cam_wharehouse"
@@ -63,7 +72,11 @@ def create_access_token(identity):
     token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
     return token
 
-
+# ============================================================================
+# DATABASE SETUP (Replace with actual database like PostgreSQL)
+# ============================================================================
+# For production, replace these in-memory data structures with database models
+# Recommended: SQLAlchemy with PostgreSQL
 
 class User(db.Model):
     __tablename__ = "users"
