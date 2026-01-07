@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import jwt
-from yolo_webcam import run_ai_on_frame
+from backend.yolo_webcam import run_ai_on_frame
 import sys
 sys.path.append(os.path.dirname(__file__))
 from flask_migrate import Migrate, upgrade
