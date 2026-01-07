@@ -42,15 +42,16 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+from flask_migrate import Migrate
+import os
 
 if os.getenv("FLASK_ENV") != "testing":
     migrate = Migrate(app, db)
-    with app.app_context():
-        upgrade()
 
 bcrypt = Bcrypt(app)
 
-
+with app.app_context():
+    upgrade()
 
 
 
