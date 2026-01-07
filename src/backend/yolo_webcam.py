@@ -3,7 +3,10 @@ import os
 import requests
 import time
 from datetime import datetime, timezone
-from ultralytics import YOLO
+try:
+    from ultralytics import YOLO
+except ImportError:
+    YOLO = None
 import cv2
 
 # --- CONFIG ---

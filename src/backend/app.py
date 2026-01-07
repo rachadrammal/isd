@@ -1,8 +1,3 @@
-"""
-Company Management System - Python Backend
-This Flask application serves as the backend API for the company management system.
-Connect your AI models in the designated sections marked with # AI MODEL INTEGRATION
-"""
 
 import uuid
 from functools import wraps
@@ -68,11 +63,7 @@ def create_access_token(identity):
     token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
     return token
 
-# ============================================================================
-# DATABASE SETUP (Replace with actual database like PostgreSQL)
-# ============================================================================
-# For production, replace these in-memory data structures with database models
-# Recommended: SQLAlchemy with PostgreSQL
+
 
 class User(db.Model):
     __tablename__ = "users"
