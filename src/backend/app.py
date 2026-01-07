@@ -50,16 +50,11 @@ if os.getenv("FLASK_ENV") != "testing":
 
 bcrypt = Bcrypt(app)
 
-with app.app_context():
    
-
-
-
-
 app.config['SECRET_KEY'] = os.getenv(
     "SECRET_KEY",
     "dev-secret-do-not-use"
-)
+    )
 app.config['JWT_EXPIRATION_HOURS'] = 24
 
 CAMERA_ID = "cam_wharehouse"

@@ -1,7 +1,5 @@
 
-  # Company Management System
-
-  This is a code bundle for Company Management System. The original project is available at https://www.figma.com/design/XxEFNGoKktZ3TAGv274TuU/Company-Management-System.
+  # Business Flow
 
   ## Running the code
 
