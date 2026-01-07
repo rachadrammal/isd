@@ -1,90 +1,61 @@
-"""
-Company Management System - Python Backend
-This Flask application serves as the backend API for the company management system.
-Connect your AI models in the designated sections marked with # AI MODEL INTEGRATION
-"""
-
-import uuid
-from functools import wraps
-from flask_migrate import Migrate
-import cv2
 import os
-from flask import Response
-from datetime import datetime, timedelta, timezone
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+import sys
+import uuid
 import jwt
+import cv2
+from functools import wraps
+from datetime import datetime, timedelta, timezone
+
+from flask import Flask, request, jsonify, Response
+from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
+from flask_bcrypt import Bcrypt
+from flask_migrate import Migrate, upgrade
+
 try:
     from yolo_webcam import run_ai_on_frame
 except ImportError:
     run_ai_on_frame = None
 
-import sys
 sys.path.append(os.path.dirname(__file__))
-from flask_migrate import Migrate, upgrade
-
-
-
-
 
 app = Flask(__name__)
-from flask_sqlalchemy import SQLAlchemy
-from flask_bcrypt import Bcrypt
 CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}}, supports_credentials=True)
 
 @app.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
     return response
 
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
     "DATABASE_URL",
     "postgresql://companyuser:companypass123@localhost:5432/companydb"
 )
-
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-do-not-use")
+app.config["JWT_EXPIRATION_HOURS"] = 24
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
 if os.getenv("FLASK_ENV") != "testing":
-    migrate = Migrate(app, db)
     with app.app_context():
         upgrade()
 
 bcrypt = Bcrypt(app)
 
-
-
-
-
-
-app.config['SECRET_KEY'] = os.getenv(
-    "SECRET_KEY",
-    "dev-secret-do-not-use"
-)
-app.config['JWT_EXPIRATION_HOURS'] = 24
-
-CAMERA_ID = "cam_wharehouse"
 UTC = timezone.utc
 
 def create_access_token(identity):
     payload = {
-        'username': identity,
-        'exp': datetime.now(UTC) + timedelta(hours=app.config['JWT_EXPIRATION_HOURS'])
+        "username": identity,
+        "exp": datetime.now(UTC) + timedelta(hours=app.config["JWT_EXPIRATION_HOURS"])
     }
-    token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
-    return token
-
-# ============================================================================
-# DATABASE SETUP (Replace with actual database like PostgreSQL)
-# ============================================================================
-# For production, replace these in-memory data structures with database models
-# Recommended: SQLAlchemy with PostgreSQL
+    return jwt.encode(payload, app.config["SECRET_KEY"], algorithm="HS256")
 
 class User(db.Model):
     __tablename__ = "users"
-
     id = db.Column(db.String(36), primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
@@ -93,15 +64,11 @@ class User(db.Model):
     email = db.Column(db.String(120))
     is_active = db.Column(db.Boolean, default=True)
 
-
-# Inventory data structure - separated by warehouse
 class Warehouse(db.Model):
     __tablename__ = "warehouses"
-
     id = db.Column(db.String(36), primary_key=True)
     name = db.Column(db.String(100))
     type = db.Column(db.String(50))
-
 
 class Product(db.Model):
     __tablename__ = "products"
@@ -113,40 +80,19 @@ class Product(db.Model):
     price = db.Column(db.Numeric(10, 2))
     cost = db.Column(db.Numeric(10, 2))
 
-
-
-
-# Inventory items
 class InventoryItem(db.Model):
     __tablename__ = "inventory_items"
-
     id = db.Column(db.String(36), primary_key=True)
-
-    # 🔥 THIS WAS MISSING
-    product_id = db.Column(
-        db.String(36),
-        db.ForeignKey("products.id"),
-        nullable=False
-    )
-
-    warehouse_id = db.Column(
-        db.String(36),
-        db.ForeignKey("warehouses.id"),
-        nullable=False
-    )
-
+    product_id = db.Column(db.String(36), db.ForeignKey("products.id"), nullable=False)
+    warehouse_id = db.Column(db.String(36), db.ForeignKey("warehouses.id"), nullable=False)
     quantity = db.Column(db.Integer, default=0)
     min_stock = db.Column(db.Integer, default=0)
     reorder_point = db.Column(db.Integer, default=0)
-
     location = db.Column(db.String(100))
     expiry_date = db.Column(db.Date)
 
-
-# Inventory change archive/log
 class InventoryArchive(db.Model):
     __tablename__ = "inventory_archive"
-
     id = db.Column(db.String(36), primary_key=True)
     item_id = db.Column(db.String(36), nullable=False)
     sku = db.Column(db.String(50))
@@ -156,34 +102,30 @@ class InventoryArchive(db.Model):
     edited_by = db.Column(db.String(80))
     timestamp = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
 
-# Orders/Sales data
 class Order(db.Model):
     __tablename__ = "orders"
-
     id = db.Column(db.String(36), primary_key=True)
     order_number = db.Column(db.String(50))
     customer_name = db.Column(db.String(200))
-    customer_email = db.Column(db.String(120))  
+    customer_email = db.Column(db.String(120))
     total_amount = db.Column(db.Numeric(10, 2))
     status = db.Column(db.String(20))
     payment_status = db.Column(db.String(20))
     created_by = db.Column(db.String(36))
     order_date = db.Column(db.DateTime)
-    delivery_date = db.Column(db.Date)  
+    delivery_date = db.Column(db.Date)
 
 class OrderItem(db.Model):
     __tablename__ = "order_items"
-
     id = db.Column(db.String(36), primary_key=True)
     order_id = db.Column(db.String(36), db.ForeignKey("orders.id"), nullable=False)
     product_id = db.Column(db.String(36), db.ForeignKey("products.id"), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Numeric(10, 2), nullable=False)
-    total_price = db.Column(db.Numeric(10, 2), nullable=False) 
-     
+    total_price = db.Column(db.Numeric(10, 2), nullable=False)
+
 class OrderArchive(db.Model):
     __tablename__ = "order_archive"
-
     id = db.Column(db.String(36), primary_key=True)
     order_id = db.Column(db.String(36), nullable=False)
     customer_name = db.Column(db.String(200))
@@ -195,21 +137,21 @@ class OrderArchive(db.Model):
 
 class OrderItemArchive(db.Model):
     __tablename__ = "order_items_archive"
-
-    id = db.Column(db.String(36), primary_key=True)   # ✅ Primary key
+    id = db.Column(db.String(36), primary_key=True)
     order_archive_id = db.Column(db.String(36), db.ForeignKey("order_archive.id"), nullable=False)
     product_id = db.Column(db.String(36))
     quantity = db.Column(db.Integer)
     unit_price = db.Column(db.Numeric(10, 2))
     total_price = db.Column(db.Numeric(10, 2))
+
 # Production data
 
 class ProductionLine(db.Model):
         __tablename__ = "production_lines"
-        id = db.Column(db.String(36), primary_key=True)   # ✅ must be PK
+        id = db.Column(db.String(36), primary_key=True)   
         name = db.Column(db.String(100), nullable=False)
         product_id = db.Column(db.String(36), db.ForeignKey("products.id"), nullable=True)
-        status = db.Column(db.String(20), nullable=False)  # operational, stopped, maintenance
+        status = db.Column(db.String(20), nullable=False) 
         capacity_per_hour = db.Column(db.Integer, default=0)
         location = db.Column(db.String(100))
         last_maintenance = db.Column(db.DateTime)
@@ -352,28 +294,6 @@ def login():
         }
     })
 
-
-#@app.route("/api/auth/login", methods=["POST"])
-#def login():
- #   data = request.get_json()
-  #  username = data.get("username")
-   # password = data.get("password")
-
-    #user = User.query.filter_by(username=username).first()
-
-    ##   return jsonify({"message": "Invalid credentials"}), 401
-
-    #token = create_access_token(identity=user.username)
-
-    #return jsonify({
-     #   "token": token,
-      #  "user": {
-       #     "id": user.id,
-        #    "username": user.username,
-         #   "role": user.role,
-          #  "name": user.name
-        #}
-    #})
 
 
 # ============================================================================
@@ -829,17 +749,6 @@ def get_order_archive(current_user):
         }
         for a in archives
     ])
-    # ========================================================================
-    # AI MODEL INTEGRATION - Order Analysis
-    # ========================================================================
-    # TODO: Add AI model to analyze order patterns and suggest optimizations
-    # Example:
-    # from models.order_analysis import analyze_order_pattern
-    # ai_insights = analyze_order_pattern(data)
-    # data['ai_insights'] = ai_insights
-    # ========================================================================
-
-    
 
 # ============================================================================
 # PRODUCTION ENDPOINTS
@@ -1004,26 +913,7 @@ def create_production_run(current_user):
             "createdBy": run.created_by,
         }
     }), 201
-#app = FastAPI()
 
-# Load model (example, adjust to your setup)
-#model = LagLlamaEstimator.load_pretrained("lag-llama")
-
-#@app.post("/forecast")
-#def forecast(data: list):
-    # data = your time series input
-    #prediction = model.predict(torch.tensor(data))
-    #return {"forecast": prediction.tolist()}
-
-    # ========================================================================
-    # AI MODEL INTEGRATION - Production Optimization
-    # ========================================================================
-    # TODO: Add AI model to optimize production scheduling and resource allocation
-    # Example:
-    # from models.production_optimizer import optimize_production_schedule
-    # optimization_suggestions = optimize_production_schedule(data)
-    # data['ai_optimization'] = optimization_suggestions
-    # ========================================================================
 
     return jsonify({'message': 'Production run created successfully', 'run': data}), 201
 
@@ -1295,7 +1185,7 @@ def list_cameras(current_user):
             "location": c.location,
             "status": c.status,
             "aiEnabled": c.ai_enabled,
-            "thumbnail": None  # optional field for frontend
+            "thumbnail": None  
         } for c in cameras
     ])
 
@@ -1304,61 +1194,13 @@ def list_cameras(current_user):
 @token_required
 @admin_required
 def analyze_camera_feed(current_user, camera_id):
-    """
-    Analyze camera feed using AI models
-    This endpoint receives camera frames and runs AI detection
-    """
-    # ========================================================================
-    # AI MODEL INTEGRATION - Camera Analysis
-    # ========================================================================
-    # TODO: Integrate your AI models for anomaly and face detection here
-    #
-    # Expected workflow:
-    # 1. Receive camera frame/image from request
-    # 2. Run through anomaly detection model
-    # 3. Run through face recognition model
-    # 4. Run through safety equipment detection model
-    # 5. Return results with confidence scores
-    #
-    # Example implementation:
-    #
-    # from models.anomaly_detection import detect_anomalies
-    # from models.face_recognition import detect_faces
-    # from models.safety_detection import detect_safety_violations
-    #
-    # # Get image from request
-    # image_data = request.files.get('frame') or request.get_json().get('frame_base64')
-    #
-    # # Run AI models
-    # anomalies = detect_anomalies(image_data, confidence_threshold=0.75)
-    # faces = detect_faces(image_data, known_faces_db)
-    # safety_violations = detect_safety_violations(image_data)
-    #
-    # results = {
-    #     'camera_id': camera_id,
-    #     'timestamp': datetime.now().isoformat(),
-    #     'anomalies': anomalies,
-    #     'faces': faces,
-    #     'safety_violations': safety_violations
-    # }
-    #
-    # # Create alerts for high-confidence detections
-    # if anomalies and anomalies[0]['confidence'] > 0.85:
-    #     create_alert_from_detection(anomalies[0], camera_id)
-    #
-    # return jsonify(results)
-    # ========================================================================
 
-    # Placeholder response
     return jsonify({
         'camera_id': camera_id,
         'message': 'AI models not yet integrated. Add your models in the designated section.',
         'timestamp': datetime.now().isoformat()
     })
 
-# ============================================================================
-# DASHBOARD & ANALYTICS ENDPOINTS
-# ============================================================================
 
 # ============================================================================
 # DASHBOARD ANALYTICS ENDPOINTS
@@ -1476,22 +1318,7 @@ def get_recent_activities(current_user):
         }
         for log in logs
     ])
-    # ========================================================================
-    # AI MODEL INTEGRATION - Predictive Analytics
-    # ========================================================================
-    # TODO: Add AI models for business intelligence and predictions
-    #
-    # Example:
-    # from models.sales_forecasting import predict_sales
-    # from models.inventory_optimization import suggest_reorder
-    # from models.production_planning import optimize_schedule
-    #
-    # stats['ai_predictions'] = {
-    #     'sales_forecast': predict_sales(orders_db),
-    #     'inventory_suggestions': suggest_reorder(inventory_db),
-    #     'production_optimization': optimize_schedule(production_db)
-    # }
-    # ========================================================================
+ 
 
     return jsonify(stats)
 
@@ -1501,24 +1328,7 @@ def get_recent_activities(current_user):
 def get_ai_suggestions(current_user):
     """Get AI-powered business suggestions"""
 
-    # ========================================================================
-    # AI MODEL INTEGRATION - Business Intelligence
-    # ========================================================================
-    # TODO: Add AI models for generating business insights and suggestions
-    #
-    # Example:
-    # from models.business_intelligence import generate_suggestions
-    #
-    # suggestions = generate_suggestions(
-    #     inventory_data=inventory_db,
-    #     sales_data=orders_db,
-    #     production_data=production_db
-    # )
-    #
-    # return jsonify(suggestions)
-    # ========================================================================
 
-    # Placeholder suggestions
     return jsonify({
         'suggestions': [
             {
@@ -1530,9 +1340,7 @@ def get_ai_suggestions(current_user):
         ]
     })
 
-# ============================================================================
-# HEALTH CHECK
-# ============================================================================
+
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -1543,9 +1351,6 @@ def health_check():
         'version': '1.0.0'
     })
 
-# ============================================================================
-# ERROR HANDLERS
-# ============================================================================
 
 @app.errorhandler(404)
 def not_found(error):
@@ -1555,9 +1360,7 @@ def not_found(error):
 def internal_error(error):
     return jsonify({'message': 'Internal server error'}), 500
 
-# ============================================================================
-# RUN APPLICATION
-# ============================================================================
+
 @app.route("/hello", methods=["GET"])
 def hello():
     return {"message": "Hello, world!"}, 200
@@ -1586,8 +1389,3 @@ if __name__ == '__main__':
     print("\n")
     app.run(debug=True)
     
-    
-
-# Run this once inside your app.py after defining models
-
-  

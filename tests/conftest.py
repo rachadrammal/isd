@@ -5,7 +5,6 @@ import types
 from backend.app import app, db
 from flask_migrate import upgrade
 
-
 sys.modules['yolo_webcam'] = types.ModuleType('yolo_webcam')
 sys.modules['yolo_webcam'].run_ai_on_frame = lambda frame: None
 
