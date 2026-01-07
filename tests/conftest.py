@@ -19,8 +19,6 @@ from backend.app import app, db
 
 def setup_database():
     with app.app_context():
-        upgrade()
-    with app.app_context():
         db.create_all()
     yield
     with app.app_context():
