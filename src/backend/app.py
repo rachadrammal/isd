@@ -51,7 +51,7 @@ if os.getenv("FLASK_ENV") != "testing":
 bcrypt = Bcrypt(app)
 
 with app.app_context():
-    upgrade()
+   
 
 
 
